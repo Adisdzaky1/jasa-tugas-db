@@ -1,0 +1,12 @@
+[
+{
+  "id": "sv001",
+  "name": "Jasa Skripsi Lengkap",
+  "description": "Pengerjaan skripsi BAB 1-5 + jurnal pendukung",
+  "price": 500000,
+  "estimasi": "7-14 hari",
+  "category": "akademik",
+  "icon": "📚",
+  "features": ["Revisi 3x gratis", "Plagiarisme < 20%", "Format Word + PDF"]
+}
+]
