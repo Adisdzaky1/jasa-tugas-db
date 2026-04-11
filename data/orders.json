@@ -68,9 +68,9 @@
     "attachment_file": null,
     "attachment_name": null,
     "attachment_type": null,
-    "payment_method": null,
-    "atlantic_reff_id": null,
-    "atlantic_tx_id": null,
+    "payment_method": "qris",
+    "atlantic_reff_id": "order-adf381c1",
+    "atlantic_tx_id": "0R7CagWmm8Qe16jpvbRy",
     "payment_status": "pending",
     "status": "menunggu_pembayaran",
     "queue_number": null,
@@ -78,6 +78,13 @@
     "result_filename": null,
     "result_filetype": null,
     "created_at": "2026-04-11T11:13:10.815Z",
-    "updated_at": "2026-04-11T11:13:10.815Z"
+    "updated_at": "2026-04-11T11:25:47.601Z",
+    "fee_flat": 1000,
+    "fee_percent": 3500,
+    "fee_total": 4500,
+    "grand_total": 504500,
+    "atlantic_qr_string": "00020101021226610016ID.CO.SHOPEE.WWW01189360091800209988050208209988050303UME51440014ID.CO.QRIS.WWW0215ID20232405136140303UME5204481453033605409504500.005802ID5905MITRA6012KOTA BANDUNG6105406146222051813083101691458267963047798",
+    "atlantic_qr_image": "https://atlantich2h.com/qr/0R7CagWmm8Qe16jpvbRy",
+    "atlantic_expired_at": "2026-04-11 19:25:47"
   }
 ]
