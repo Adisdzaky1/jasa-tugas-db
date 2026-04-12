@@ -1,0 +1,635 @@
+
+Buatkan website lengkap "Jasa Tugas" siap deploy ke Vercel dengan stack:
+- Backend: Express.js (Node.js) sebagai Vercel Serverless Function
+- Templating: EJS (Embedded JavaScript Templates)
+- Styling: Tailwind CSS via CDN (modern, gelap elegan, responsive)
+- Database: GitHub Repository sebagai penyimpanan JSON (read-write via GitHub API)
+- Auth: Firebase Authentication (email/password, session 30 hari)
+- Payment: Atlantic Payment Gateway
+
+==================================================
+📁 STRUKTUR FOLDER (Vercel-Compatible)
+==================================================
+/
+├── api/
+│   └── index.js          ← entry point semua route (Vercel handler)
+├── vercel.json           ← konfigurasi routing Vercel
+├── package.json
+├── .env                  ← local dev (di Vercel pakai Environment Variables)
+├── /src
+│   ├── /routes
+│   │   ├── auth.js
+│   │   ├── orders.js
+│   │   ├── payment.js
+│   │   ├── admin.js
+│   │   └── pages.js      ← route render EJS halaman
+│   ├── /middleware
+│   │   ├── firebaseAuth.js
+│   │   └── adminAuth.js
+│   └── /services
+│       ├── github.js
+│       ├── atlantic.js
+│       └── firebase.js
+├── /views                ← semua template EJS
+│   ├── /layouts
+│   │   ├── main.ejs      ← layout user (navbar + footer)
+│   │   └── admin.ejs     ← layout admin
+│   ├── /partials
+│   │   ├── navbar.ejs
+│   │   ├── footer.ejs
+│   │   └── toast.ejs
+│   ├── index.ejs
+│   ├── login.ejs
+│   ├── register.ejs
+│   ├── layanan.ejs
+│   ├── pesan.ejs
+│   ├── pembayaran.ejs
+│   ├── dashboard.ejs
+│   └── /admin
+│       ├── login.ejs
+│       ├── dashboard.ejs
+│       ├── pesanan.ejs
+│       └── pesanan-detail.ejs
+└── /public
+    ├── /css
+    │   └── custom.css
+    └── /js
+        ├── main.js
+        ├── payment-polling.js
+        └── admin.js
+
+==================================================
+⚙️ KONFIGURASI VERCEL (vercel.json)
+==================================================
+Buat file vercel.json di root:
+
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.js"
+    }
+  ]
+}
+
+==================================================
+⚙️ ENTRY POINT (api/index.js)
+==================================================
+File ini adalah handler utama untuk Vercel Serverless.
+Wajib export app Express, bukan app.listen():
+
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const ejsLayouts = require('express-ejs-layouts');
+require('dotenv').config();
+
+const app = express();
+
+// EJS Setup
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '../views'));
+app.use(ejsLayouts);
+app.set('layout', 'layouts/main'); // default layout
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, '../public')));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 hari
+}));
+
+// Routes
+app.use('/', require('../src/routes/pages'));
+app.use('/api/auth', require('../src/routes/auth'));
+app.use('/api/orders', require('../src/routes/orders'));
+app.use('/api/payment', require('../src/routes/payment'));
+app.use('/admin', require('../src/routes/admin'));
+
+// WAJIB: export untuk Vercel Serverless
+module.exports = app;
+
+// Local dev only
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(3000, () => console.log('Server: http://localhost:3000'));
+}
+
+==================================================
+📦 PACKAGE.JSON
+==================================================
+{
+  "name": "jasa-tugas",
+  "version": "1.0.0",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "nodemon api/index.js",
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.17.3",
+    "firebase-admin": "^11.11.0",
+    "multer": "^1.4.5-lts.1",
+    "qs": "^6.11.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+
+==================================================
+🎨 EJS LAYOUT SYSTEM
+==================================================
+
+FILE: views/layouts/main.ejs (layout untuk user)
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><%= typeof title !== 'undefined' ? title + ' | JasaTugas.id' : 'JasaTugas.id' %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+            secondary: '#8b5cf6'
+          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/custom.css"/>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col">
+
+  <%- include('../partials/toast') %>
+  <%- include('../partials/navbar') %>
+
+  <main class="flex-1">
+    <%- body %>
+  </main>
+
+  <%- include('../partials/footer') %>
+
+  <script src="/js/main.js"></script>
+  <%- typeof scripts !== 'undefined' ? scripts : '' %>
+</body>
+</html>
+
+FILE: views/layouts/admin.ejs (layout untuk admin)
+Ganti navbar dengan sidebar admin, warna beda (slate/dark).
+Tidak perlu Firebase auth, pakai session check saja.
+
+==================================================
+📄 SEMUA HALAMAN EJS YANG HARUS DIBUAT
+==================================================
+
+--- views/index.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Beranda' %>
+Konten:
+- Hero: headline + subheadline + 2 CTA button
+  ("Pesan Sekarang" → /layanan) ("Cara Kerja" → scroll)
+- Section "Cara Kerja" (3 card: Pesan → Upload → Terima)
+- Section "Layanan Kami" (grid card layanan dari locals.services)
+  Render dengan loop: <% services.forEach(sv => { %>
+- Section Testimoni (dummy 3 testimoni)
+- Section FAQ (accordion dengan vanilla JS)
+Route yang render: GET / → res.render('index', { services })
+
+--- views/login.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Login' %>
+Konten:
+- Card form tengah layar
+- Input: email, password
+- Tombol "Login dengan Email"
+- Link ke /register
+- Script: Firebase Auth client SDK (via CDN)
+  Setelah firebase.auth().signInWithEmailAndPassword():
+  → Ambil ID token → POST ke /api/auth/login → set cookie → redirect /dashboard
+
+--- views/register.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Daftar' %>
+Konten:
+- Card form: nama lengkap, email, password, konfirmasi password
+- Script Firebase Auth: createUserWithEmailAndPassword
+  → POST /api/auth/register → redirect /login
+
+--- views/layanan.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Layanan' %>
+Konten:
+- Search bar filter real-time (vanilla JS)
+- Grid card layanan (loop dari services)
+  Tiap card: icon, nama, deskripsi, harga, estimasi, list fitur, tombol Pesan
+  Tombol Pesan → /pesan/<%= sv.id %>
+
+--- views/pesan.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Pesan - ' + service.name %>
+Konten:
+- Step indicator (3 langkah visual)
+- STEP 1 aktif: Form detail tugas
+  - Input: judul tugas
+  - Textarea: deskripsi lengkap
+  - File upload (accept: .jpg,.png,.pdf,.docx, max 10MB)
+  - Preview file sebelum submit
+  - Tombol Lanjut → POST /api/orders (buat order, simpan ke github)
+    Response: orderId → redirect /pembayaran/:orderId
+Gunakan form action POST dengan enctype multipart/form-data
+Multer handle file di backend, encode base64 simpan ke JSON
+
+--- views/pembayaran.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Pembayaran' %>
+Tambahkan script payment-polling.js via <%- scripts %>
+Konten:
+- STEP 2: Pilih Metode Pembayaran
+  Fetch dari /api/payment/methods → render card metode
+  Klik metode → highlight, simpan pilihan
+  Tombol "Buat Tagihan" → POST /api/payment/create
+- STEP 3: Tampil QR Code
+  Tampilkan qr_image dari Atlantic response
+  Countdown timer sampai expired_at
+  Status polling tiap 5 detik ke /api/payment/status/:orderId
+  Jika success → redirect /dashboard?paid=1
+
+--- views/dashboard.ejs ---
+<% layout('layouts/main') %>
+<% title = 'Dashboard Saya' %>
+Konten:
+- Header sambutan: "Halo, <%= user.name %>! 👋"
+- Card statistik: Total Pesanan, Menunggu, Dikerjakan, Selesai
+- Tabel pesanan milik user (data dari locals.orders)
+  Kolom: No, Layanan, Status (badge warna), Tanggal, Aksi
+  Status badge color:
+    menunggu_pembayaran → bg-yellow-500
+    antrian → bg-blue-500 + "Antrian #<%= order.queue_number %>"
+    dikerjakan → bg-orange-500
+    selesai → bg-green-500
+  Tombol "Download" muncul jika status selesai dan result_file ada
+  Tombol "Detail" buka modal info lengkap pesanan
+- Modal detail pesanan (EJS render data + toggle JS)
+
+--- views/admin/login.ejs ---
+<% layout('layouts/admin') %>
+Form login: input user + password
+POST /admin/auth/login → cek hardcode adm/adm@123 → set session → redirect /admin/dashboard
+
+--- views/admin/dashboard.ejs ---
+<% layout('layouts/admin') %>
+Konten:
+- Sidebar: link ke Dashboard, Pesanan, Logout
+- Card statistik semua pesanan
+- Chart.js bar chart: pesanan per status (CDN)
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+- Tabel 5 pesanan terbaru
+
+--- views/admin/pesanan.ejs ---
+<% layout('layouts/admin') %>
+Konten:
+- Filter dropdown: status, tanggal
+- Search input: cari ID/email user
+- Tabel semua pesanan (loop orders)
+  Kolom: ID, User Email, Layanan, Status badge, Tanggal, Tombol Detail
+
+--- views/admin/pesanan-detail.ejs ---
+<% layout('layouts/admin') %>
+Konten 2 kolom:
+
+KOLOM KIRI - Info Pesanan:
+- ID, User Email, Layanan, Harga
+- Judul & Deskripsi tugas
+- Preview lampiran user:
+  Jika .jpg/.png: <img src="data:image/...;base64,<%= order.attachment_file %>"/>
+  Jika .pdf/.docx: tombol download link base64
+
+KOLOM KANAN - Panel Kelola:
+- Form POST ke /admin/orders/:id/update
+- Select status:
+  <option value="antrian">Antrean (otomatis nomor urut)</option>
+  <option value="dikerjakan">Sedang Dikerjakan</option>
+  <option value="selesai">Selesai</option>
+- Input upload file hasil (muncul & required jika pilih "selesai"):
+  <input type="file" name="result_file" accept=".jpg,.png,.pdf,.docx"/>
+  Multer handle, encode base64, simpan ke order.result_file
+- Tombol "Simpan Perubahan"
+- Notif sukses/error pakai session flash → render di toast.ejs
+
+==================================================
+🔌 SEMUA ROUTE EXPRESS (src/routes/)
+==================================================
+
+pages.js (render EJS):
+GET /              → render index, pass services dari GitHub JSON
+GET /login         → render login
+GET /register      → render register
+GET /layanan       → render layanan, pass services
+GET /pesan/:id     → render pesan, pass service by id (middleware cek login)
+GET /pembayaran/:orderId → render pembayaran, pass order data
+GET /dashboard     → render dashboard, pass orders milik user
+
+auth.js:
+POST /api/auth/login    → verifikasi Firebase ID token → set cookie 30 hari
+POST /api/auth/register → simpan user ke users.json di GitHub
+POST /api/auth/logout   → hapus cookie
+
+orders.js:
+POST /api/orders        → buat order baru, simpan ke orders.json (GitHub)
+GET  /api/orders/my     → return orders milik user yg login (filter by uid)
+GET  /api/orders/:id    → return detail 1 order
+
+payment.js:
+GET  /api/payment/methods         → proxy ke Atlantic deposit/metode
+POST /api/payment/create          → proxy ke Atlantic deposit/create, update order
+GET  /api/payment/status/:orderId → cek status bayar (Atlantic + update JSON)
+
+admin.js:
+POST /admin/auth/login            → cek adm/adm@123 → set session
+POST /admin/auth/logout           → destroy session
+GET  /admin/dashboard             → render admin dashboard
+GET  /admin/pesanan               → render list semua pesanan
+GET  /admin/pesanan/:id           → render detail pesanan
+POST /admin/orders/:id/update     → update status + upload file hasil ke GitHub
+
+==================================================
+💳 INTEGRASI ATLANTIC (src/services/atlantic.js)
+==================================================
+Bungkus semua call ke Atlantic dalam 1 file service:
+
+const axios = require('axios');
+const qs = require('qs');
+const ATLANTIC_KEY = process.env.ATLANTIC_API_KEY;
+
+async function createDeposit(reff_id, nominal, metode) {
+  const { data } = await axios.post(
+    'https://atlantic-api-docs.vercel.app/deposit/create',
+    qs.stringify({ api_key: ATLANTIC_KEY, reff_id, nominal, type: 'ewallet', metode })
+  );
+  return data;
+}
+
+async function checkDeposit(id) {
+  const { data } = await axios.post(
+    'https://atlantich2h.com/deposit/status',
+    qs.stringify({ api_key: ATLANTIC_KEY, id })
+  );
+  return data;
+}
+
+async function getMetode() {
+  const { data } = await axios.post(
+    'https://atlantich2h.com/deposit/metode',
+    qs.stringify({ api_key: ATLANTIC_KEY, type: 'ewallet' })
+  );
+  return data;
+}
+
+module.exports = { createDeposit, checkDeposit, getMetode };
+
+==================================================
+💾 GITHUB SERVICE (src/services/github.js)
+==================================================
+const axios = require('axios');
+
+const BASE = 'https://api.github.com';
+const HEADERS = {
+  Authorization: `token ${process.env.GITHUB_TOKEN}`,
+  Accept: 'application/vnd.github.v3+json'
+};
+const REPO = `${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}`;
+
+async function readFile(path) {
+  const { data } = await axios.get(`${BASE}/repos/${REPO}/contents/${path}`, { headers: HEADERS });
+  const content = Buffer.from(data.content, 'base64').toString('utf8');
+  return { json: JSON.parse(content), sha: data.sha };
+}
+
+async function writeFile(path, jsonData, sha) {
+  const content = Buffer.from(JSON.stringify(jsonData, null, 2)).toString('base64');
+  await axios.put(`${BASE}/repos/${REPO}/contents/${path}`, {
+    message: `update ${path}`,
+    content,
+    sha
+  }, { headers: HEADERS });
+}
+
+module.exports = { readFile, writeFile };
+
+==================================================
+🔐 FIREBASE AUTH MIDDLEWARE (src/middleware/firebaseAuth.js)
+==================================================
+Backend: Firebase Admin SDK verifikasi token dari cookie
+
+const admin = require('../services/firebase');
+
+module.exports = async (req, res, next) => {
+  const token = req.cookies?.fb_token;
+  if (!token) return res.redirect('/login');
+  try {
+    req.user = await admin.auth().verifyIdToken(token);
+    next();
+  } catch {
+    res.clearCookie('fb_token');
+    res.redirect('/login');
+  }
+};
+
+Frontend (login.ejs / register.ejs): Gunakan Firebase Client SDK via CDN:
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+Setelah login berhasil, getIdToken() → fetch POST /api/auth/login → server set cookie
+
+==================================================
+🔒 ADMIN AUTH MIDDLEWARE (src/middleware/adminAuth.js)
+==================================================
+module.exports = (req, res, next) => {
+  if (req.session?.isAdmin) return next();
+  res.redirect('/admin/login');
+};
+
+==================================================
+🔧 FILE .env
+==================================================
+PORT=3000
+NODE_ENV=development
+
+# Atlantic
+ATLANTIC_API_KEY=your_atlantic_key
+
+# GitHub DB
+GITHUB_TOKEN=your_github_pat
+GITHUB_OWNER=your_github_username
+GITHUB_REPO=jasa-tugas-db
+
+# Firebase Admin SDK
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@xxx.iam.gserviceaccount.com
+
+# Firebase Client (untuk EJS render ke frontend)
+NEXT_PUBLIC_FIREBASE_API_KEY=xxx
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx.firebaseapp.com
+
+# Session
+SESSION_SECRET=buat_random_string_panjang_minimal_32_karakter
+
+==================================================
+📝 SCHEMA DATA JSON (GitHub Repo)
+==================================================
+
+data/orders.json → array:
+{
+  "id": "uuid-v4",
+  "user_id": "firebase_uid",
+  "user_email": "user@email.com",
+  "user_name": "Nama User",
+  "service_id": "sv001",
+  "service_name": "Jasa Skripsi BAB 1-5",
+  "price": 150000,
+  "title": "Judul Tugas",
+  "description": "Deskripsi detail tugas",
+  "attachment_file": "base64string",
+  "attachment_name": "tugas.pdf",
+  "attachment_type": "application/pdf",
+  "payment_method": "qris",
+  "atlantic_reff_id": "order-uuid",
+  "atlantic_tx_id": "id_dari_atlantic",
+  "payment_status": "pending|success|failed",
+  "status": "menunggu_pembayaran|antrian|dikerjakan|selesai",
+  "queue_number": null,
+  "result_file": null,
+  "result_filename": null,
+  "result_filetype": null,
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
+}
+
+data/users.json → array:
+{
+  "uid": "firebase_uid",
+  "name": "Nama Lengkap",
+  "email": "user@email.com",
+  "created_at": "2024-01-01T00:00:00.000Z"
+}
+
+data/services.json → array (isi minimal 5 layanan):
+{
+  "id": "sv001",
+  "name": "Jasa Skripsi Lengkap",
+  "description": "Pengerjaan skripsi BAB 1-5 + jurnal pendukung",
+  "price": 500000,
+  "estimasi": "7-14 hari",
+  "category": "akademik",
+  "icon": "📚",
+  "features": ["Revisi 3x gratis", "Plagiarisme < 20%", "Format Word + PDF"]
+}
+
+==================================================
+🎨 DESIGN SYSTEM (Tailwind Classes)
+==================================================
+Tema Warna (dark mode default):
+- Background: bg-gray-950
+- Card: bg-gray-900 border border-gray-800
+- Primary: indigo-500/600
+- Secondary: violet-500/600
+- Text utama: text-gray-100
+- Text muted: text-gray-400
+- Border: border-gray-700/800
+
+Komponen Wajib:
+// Badge status
+<span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">
+  Menunggu Pembayaran
+</span>
+
+// Card layanan
+<div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-indigo-500 
+            transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10">
+
+// Tombol primary
+<button class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold 
+               py-3 px-6 rounded-xl transition-colors duration-200">
+
+// Input field
+<input class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 
+              text-gray-100 focus:outline-none focus:border-indigo-500 
+              focus:ring-1 focus:ring-indigo-500 transition-colors">
+
+==================================================
+⚠️ ATURAN PENTING VERCEL
+==================================================
+1. JANGAN gunakan app.listen() di production
+   → Gunakan: module.exports = app (Vercel otomatis handle port)
+
+2. File upload TIDAK bisa disimpan ke filesystem Vercel (ephemeral)
+   → Semua file wajib di-convert ke base64 dan simpan ke GitHub JSON
+
+3. Ukuran response Vercel max 4.5MB per function
+   → Batasi ukuran attachment base64 maksimal 2MB
+
+4. Vercel timeout default 10 detik (Hobby plan)
+   → GitHub API call harus cepat, jangan banyak sequential await
+
+5. Static files (/public) tetap bisa diserve via Express
+   → Pastikan app.use(express.static()) dipanggil sebelum routes
+
+6. Environment Variables di Vercel:
+   → Tambahkan semua isi .env ke Vercel Dashboard → Settings → Environment Variables
+   → FIREBASE_PRIVATE_KEY: paste dengan tanda kutip, Vercel handle escape otomatis
+
+7. vercel.json wajib ada di root folder
+
+==================================================
+🚀 CARA DEPLOY KE VERCEL
+==================================================
+Tambahkan instruksi ini di README.md:
+
+1. Push code ke GitHub repository
+2. Buka vercel.com → New Project → Import repo
+3. Framework Preset: Other
+4. Root Directory: ./  (biarkan default)
+5. Build Command: (kosongkan)
+6. Output Directory: (kosongkan)
+7. Install Command: npm install
+8. Tambahkan semua Environment Variables dari .env
+9. Klik Deploy
+
+Untuk GitHub DB:
+1. Buat repo baru: "jasa-tugas-db"
+2. Buat folder data/ dengan 3 file JSON berisi array kosong []
+3. Generate PAT: GitHub → Settings → Developer Settings → 
+   Personal Access Tokens → Fine-grained → pilih repo jasa-tugas-db
+   Permission: Contents (Read and Write)
+
+Buatkan semua file lengkap, siap dijalankan dengan "npm run dev" 
+untuk lokal dan siap deploy ke Vercel.
+|
