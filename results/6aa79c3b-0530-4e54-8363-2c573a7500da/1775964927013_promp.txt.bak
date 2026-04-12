@@ -1,0 +1,313 @@
+# Prompt Lengkap: Website Jasa Tugas
+
+Berikut prompt siap pakai yang bisa kamu berikan ke AI coding assistant (Claude, ChatGPT, Cursor, dll):
+
+---
+
+## 📋 MASTER PROMPT
+
+```
+Buatkan website lengkap "Jasa Tugas" menggunakan stack berikut:
+- Backend: Express.js (Node.js)
+- Frontend: HTML + Tailwind CSS CDN (modern, rapi, menarik)
+- Database: GitHub Repository sebagai penyimpanan JSON (read-write via GitHub API)
+- Auth: Firebase Authentication (email/password, session 30 hari)
+- Payment: Atlantic Payment Gateway
+
+==================================================
+🔐 AUTHENTICATION (Firebase Gratis)
+==================================================
+- Gunakan Firebase Auth dengan email & password
+- Setelah login, simpan token ke cookie dengan maxAge 30 hari
+- Middleware Express cek token Firebase di setiap route protected
+- Halaman: /login dan /register
+- Setelah login redirect ke /dashboard
+
+==================================================
+💾 DATABASE (GitHub Repository JSON)
+==================================================
+Gunakan GitHub REST API untuk baca-tulis file JSON:
+- Endpoint: https://api.github.com/repos/{owner}/{repo}/contents/{path}
+- Auth: GitHub Personal Access Token (PAT) via Authorization header
+- Simpan data dalam file JSON di repo:
+  - data/users.json → data user
+  - data/orders.json → data pesanan tugas
+  - data/services.json → daftar jasa/layanan
+
+Fungsi helper yang wajib dibuat:
+async function readGithubFile(path) - GET file, decode base64, return JSON
+async function writeGithubFile(path, content, sha) - PUT file, encode base64, commit
+
+Selalu fetch SHA terbaru sebelum write untuk menghindari conflict.
+
+==================================================
+🎨 TAMPILAN (Tailwind CSS)
+==================================================
+Tema: Gelap elegan dengan aksen biru/ungu
+- Font: Inter dari Google Fonts
+- Animasi halus (transition, hover effects)
+- Fully responsive (mobile-first)
+- Komponen: navbar, card layanan, badge status, modal, progress steps
+
+Wajib ada di setiap halaman:
+- Navbar: Logo "JasaTugas.id" + menu (Beranda, Layanan, Login/Dashboard)
+- Footer: copyright, link sosmed
+- Loading spinner saat fetch data
+- Toast notification (success/error)
+
+==================================================
+📄 HALAMAN USER (Alur Utama)
+==================================================
+
+1. / → Landing Page
+   - Hero section: headline besar + CTA "Pesan Sekarang"
+   - Section: Cara Kerja (3 langkah dengan ikon)
+   - Section: Daftar Layanan Jasa (card grid)
+   - Section: Testimoni dummy
+   - Section: FAQ
+
+2. /layanan → Daftar Semua Jasa
+   - Card tiap layanan: nama, deskripsi, harga, estimasi, tombol "Pesan"
+   - Data layanan dari data/services.json
+   - Filter/search layanan
+
+3. /pesan/:serviceId → Form Pemesanan (protected, harus login)
+   Step 1 - Detail Tugas:
+   - Input: judul tugas, deskripsi lengkap
+   - Upload file/foto (support jpg, png, pdf, docx, max 10MB)
+   - File di-encode base64 dan simpan ke orders.json
+   - Tombol "Lanjut ke Pembayaran"
+
+   Step 2 - Pilih Metode Pembayaran:
+   - Tampilkan metode dari Atlantic API: GET /deposit/metode
+   - Tampilkan card: nama metode, logo, fee, min/max
+   - Default pilih QRIS
+   - Tombol "Buat Pembayaran"
+
+   Step 3 - Halaman Pembayaran:
+   - Panggil Atlantic API POST /deposit/create dengan:
+     api_key, reff_id (orderId), nominal (harga layanan), type, metode
+   - Tampilkan QR code image dari response (qr_image)
+   - Tampilkan countdown timer expired_at
+   - Polling status setiap 5 detik ke /api/check-payment/:orderId
+   - Jika status "success" → redirect ke /dashboard dengan notif sukses
+
+4. /dashboard → Dashboard User (protected)
+   - Header: "Halo, {nama}!" + ringkasan statistik
+   - Tabel/card daftar pesanan milik user
+   - Kolom: No Urut, Layanan, Status (badge warna), Tanggal, Aksi
+   - Status badge:
+     🟡 "Menunggu Pembayaran" 
+     🔵 "Antrean #X" 
+     🟠 "Sedang Dikerjakan"
+     🟢 "Selesai"
+   - Jika status Selesai: tombol "Download File" muncul
+   - Klik detail → modal tampilkan info lengkap pesanan
+
+==================================================
+🛠️ HALAMAN ADMIN
+==================================================
+URL: /admin/login
+Kredensial hardcode: user=adm, pass=adm@123
+Gunakan session express-session terpisah dari Firebase
+
+5. /admin/dashboard → Overview admin
+   - Statistik: total pesanan, pending, dikerjakan, selesai
+   - Grafik sederhana (bar chart pakai Chart.js CDN)
+
+6. /admin/pesanan → Manajemen Semua Pesanan
+   - Tabel semua pesanan dari semua user
+   - Filter: status, tanggal
+   - Search: nama user, ID pesanan
+   - Kolom: ID, User, Layanan, Status, Tanggal, Aksi
+
+7. /admin/pesanan/:orderId → Detail & Kelola Pesanan
+   Alur pengerjaan admin:
+   
+   Panel kiri: Info Pesanan
+   - Detail user, layanan, deskripsi tugas
+   - Preview file yang diupload user (tampilkan image/link download)
+   
+   Panel kanan: Update Status
+   - Dropdown/tombol ubah status:
+     ○ "Antrean #X" → otomatis isi nomor urut berdasarkan antrian
+     ○ "Sedang Dikerjakan" 
+     ○ "Selesai"
+   - Upload File Hasil Pengerjaan:
+     - Input upload file (jpg/png/pdf/docx)
+     - Encode base64, simpan ke field "result_file" di orders.json
+     - Tombol hanya aktif saat ubah status ke "Selesai"
+   - Tombol "Simpan Perubahan"
+   - Setelah simpan: redirect balik ke list pesanan
+
+==================================================
+🔌 API ROUTES (Express.js)
+==================================================
+POST /api/auth/register - register Firebase + simpan ke users.json
+POST /api/auth/login - verifikasi Firebase token
+GET  /api/services - ambil daftar layanan dari services.json
+POST /api/orders - buat pesanan baru (simpan ke orders.json)
+GET  /api/orders/my - pesanan milik user yang login
+GET  /api/orders/:id - detail satu pesanan
+POST /api/payment/create - panggil Atlantic deposit/create
+GET  /api/payment/status/:orderId - cek status pembayaran (polling)
+POST /api/admin/orders/:id/update - admin update status + upload file hasil
+
+==================================================
+💳 INTEGRASI ATLANTIC PAYMENT
+==================================================
+Gunakan axios untuk semua request ke Atlantic:
+
+// Create deposit
+POST https://atlantic-api-docs.vercel.app/deposit/create
+Body (form-urlencoded):
+  api_key: process.env.ATLANTIC_API_KEY
+  reff_id: orderId (string unik)
+  nominal: harga layanan (integer)
+  type: "ewallet"
+  metode: "qris" (atau pilihan user)
+
+// Check status
+POST https://atlantich2h.com/deposit/status  
+Body:
+  api_key: process.env.ATLANTIC_API_KEY
+  id: atlantic_transaction_id (dari response create)
+
+// Get metode
+POST https://atlantich2h.com/deposit/metode
+Body:
+  api_key: process.env.ATLANTIC_API_KEY
+  type: "ewallet"
+
+Simpan atlantic_transaction_id ke orders.json saat buat pembayaran.
+Saat polling, ambil atlantic_transaction_id dari orders.json lalu cek ke Atlantic.
+
+==================================================
+📁 STRUKTUR FOLDER
+==================================================
+/
+├── server.js              ← entry point Express
+├── .env                   ← semua API key & config
+├── /routes
+│   ├── auth.js
+│   ├── orders.js
+│   ├── payment.js
+│   └── admin.js
+├── /middleware
+│   ├── firebaseAuth.js    ← cek Firebase token
+│   └── adminAuth.js       ← cek session admin
+├── /services
+│   ├── github.js          ← helper baca/tulis GitHub
+│   ├── atlantic.js        ← wrapper Atlantic API
+│   └── firebase.js        ← Firebase Admin SDK init
+├── /views                 ← file HTML (atau EJS)
+│   ├── index.html
+│   ├── login.html
+│   ├── register.html
+│   ├── layanan.html
+│   ├── pesan.html
+│   ├── pembayaran.html
+│   ├── dashboard.html
+│   └── /admin
+│       ├── login.html
+│       ├── dashboard.html
+│       ├── pesanan.html
+│       └── pesanan-detail.html
+└── /public
+    └── /uploads           ← temporary (lalu encode ke base64)
+
+==================================================
+🔧 FILE .env YANG DIBUTUHKAN
+==================================================
+PORT=3000
+ATLANTIC_API_KEY=your_atlantic_key
+GITHUB_TOKEN=your_github_pat
+GITHUB_OWNER=your_github_username
+GITHUB_REPO=your_repo_name
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY=your_private_key
+FIREBASE_CLIENT_EMAIL=your_client_email
+SESSION_SECRET=random_secret_string_panjang
+
+==================================================
+📦 DEPENDENCIES (package.json)
+==================================================
+"dependencies": {
+  "express": "^4.18.2",
+  "axios": "^1.6.0",
+  "qs": "^6.11.2",
+  "express-session": "^1.17.3",
+  "cookie-parser": "^1.4.6",
+  "firebase-admin": "^11.11.0",
+  "multer": "^1.4.5-lts.1",
+  "dotenv": "^16.3.1",
+  "cors": "^2.8.5"
+}
+
+==================================================
+📝 DATA SCHEMA (JSON)
+==================================================
+
+orders.json array item:
+{
+  "id": "uuid-v4",
+  "user_id": "firebase_uid",
+  "user_email": "user@email.com",
+  "service_id": "sv001",
+  "service_name": "Jasa Skripsi BAB 1-5",
+  "price": 150000,
+  "title": "Skripsi Sistem Informasi",
+  "description": "Detail tugas...",
+  "attachment_file": "base64string...",
+  "attachment_name": "tugas.pdf",
+  "payment_method": "qris",
+  "atlantic_reff_id": "order_uuid",
+  "atlantic_tx_id": "atlantic_response_id",
+  "payment_status": "pending|success|failed",
+  "status": "menunggu_pembayaran|antrian|dikerjakan|selesai",
+  "queue_number": null,
+  "result_file": null,
+  "result_filename": null,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+
+services.json array item:
+{
+  "id": "sv001",
+  "name": "Jasa Skripsi Lengkap",
+  "description": "Pengerjaan skripsi BAB 1-5 + jurnal",
+  "price": 500000,
+  "estimasi": "7-14 hari",
+  "category": "akademik",
+  "icon": "📚",
+  "features": ["Revisi 3x", "Plagiarisme <20%", "File Word + PDF"]
+}
+
+==================================================
+⚠️ CATATAN PENTING
+==================================================
+1. Semua GitHub write operation harus fetch SHA dulu sebelum update
+2. Polling payment jangan lebih sering dari 5 detik (hindari rate limit)
+3. File upload user di-convert ke base64 sebelum simpan ke JSON
+4. Admin login menggunakan express-session BUKAN Firebase
+5. Tambahkan error handling di semua API route (try/catch)
+6. Tampilkan pesan error yang user-friendly di frontend
+7. Queue number dihitung otomatis: COUNT orders dengan status "antrian" + 1
+
+Buatkan semua file lengkap dan siap dijalankan dengan npm start.
+```
+
+---
+
+## 💡 Tips Penggunaan Prompt
+
+**Jika hasilnya terlalu panjang**, pecah jadi beberapa sesi:
+1. Sesi 1: `"Buatkan server.js, routes/, middleware/, dan services/ berdasarkan prompt di atas"`
+2. Sesi 2: `"Buatkan semua halaman HTML user (views/) berdasarkan prompt di atas"`
+3. Sesi 3: `"Buatkan semua halaman admin (views/admin/) berdasarkan prompt di atas"`
+
+**Setup GitHub Repo sebagai DB:**
+- Buat repo baru (misal: `jasa-tugas-db`)
+- Buat folder `data/` dengan file `orders.json`, `users.json`, `services.json` berisi array kosong `[]`
+- Generate PAT di Settings → Developer Settings → Personal Access Tokens (scope: `repo`)
