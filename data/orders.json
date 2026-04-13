@@ -124,20 +124,29 @@
     "atlantic_reff_id": "order-e2958c08",
     "atlantic_tx_id": "PEE0kJEjDPYbW0LaUDrv",
     "payment_status": "pending",
-    "status": "menunggu_pembayaran",
+    "status": "selesai",
     "queue_number": null,
     "result_file": null,
     "result_filename": null,
     "result_filetype": null,
     "created_at": "2026-04-13T01:08:25.249Z",
-    "updated_at": "2026-04-13T01:12:15.673Z",
+    "updated_at": "2026-04-13T07:50:19.001Z",
     "fee_flat": 1000,
     "fee_percent": 3500,
     "fee_total": 4500,
     "grand_total": 504500,
     "atlantic_qr_string": "00020101021226610016ID.CO.SHOPEE.WWW01189360091800209988050208209988050303UME51440014ID.CO.QRIS.WWW0215ID20232405136140303UME5204481453033605409504500.005802ID5905MITRA6012KOTA BANDUNG610540614622205181341400846554698926304F0BF",
     "atlantic_qr_image": "https://atlantich2h.com/qr/PEE0kJEjDPYbW0LaUDrv",
-    "atlantic_expired_at": "2026-04-13 09:12:15"
+    "atlantic_expired_at": "2026-04-13 09:12:15",
+    "result_files": [
+      {
+        "github_path": "results/8a988516-a025-4c3b-88f7-6221edd40412/1776066619001_pesanan.ejs",
+        "name": "pesanan.ejs",
+        "size": 8506,
+        "uploaded_at": "2026-04-13T07:50:19.798Z"
+      }
+    ],
+    "has_result": true
   },
   {
     "id": "7ebb7020-36a8-4d6a-bb88-6149fe1de1ba",
