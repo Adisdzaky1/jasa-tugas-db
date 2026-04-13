@@ -1,12 +1,29 @@
 [
-{
-  "id": "sv001",
-  "name": "Jasa Skripsi Lengkap",
-  "description": "Pengerjaan skripsi BAB 1-5 + jurnal pendukung",
-  "price": 500,
-  "estimasi": "7-14 hari",
-  "category": "akademik",
-  "icon": "📚",
-  "features": ["Revisi 3x gratis", "Plagiarisme < 20%", "Format Word + PDF"]
-}
+  {
+    "id": "sv001",
+    "name": "Jasa Skripsi Lengkap",
+    "description": "Pengerjaan skripsi BAB 1-5 + jurnal pendukung",
+    "price": 500,
+    "estimasi": "7-14 hari",
+    "category": "akademik",
+    "icon": "📚",
+    "features": [
+      "Revisi 3x gratis",
+      "Plagiarisme < 20%",
+      "Format Word + PDF"
+    ]
+  },
+  {
+    "id": "sv515637",
+    "name": "Jasa Buat Website Sederhana",
+    "description": "HTML / PHP / EXPRESS JS",
+    "price": 7000,
+    "estimasi": "1-3 Hari",
+    "category": "coding",
+    "icon": "🪩",
+    "features": [
+      "Format ZIP",
+      "Siap Deploy"
+    ]
+  }
 ]
